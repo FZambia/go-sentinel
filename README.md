@@ -10,6 +10,79 @@ Documentation
 
 - [API Reference](http://godoc.org/github.com/FZambia/go-sentinel)
 
+Quick Start
+-----------
+
+```golang
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/garyburd/redigo/redis"
+	"github.com/FZambia/go-sentinel"
+)
+
+var redisClient *redis.Pool
+
+
+// Sentinel factory
+func sentinelPool() *redis.Pool {
+ 	sntnl := &sentinel.Sentinel{
+ 		// format host:port or just :port
+ 		Addrs:      []string{":26379", ":26380", ":26381"},
+ 		MasterName: "mymaster",
+ 		Dial: func(addr string) (redis.Conn, error) {
+ 			timeout := 500 * time.Millisecond
+ 			c, err := redis.DialTimeout("tcp", addr, timeout, timeout, timeout)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+ 			return c, nil
+ 		},
+ 	}
+ 	return &redis.Pool{
+ 		MaxIdle:     3,
+ 		MaxActive:   64,
+ 		Wait:        true,
+ 		IdleTimeout: 240 * time.Second,
+ 		Dial: func() (redis.Conn, error) {
+ 			// get relevant address for master
+ 			masterAddr, err := sntnl.MasterAddr()
+ 			if err != nil {
+ 				return nil, err
+ 			}
+ 			c, err := redis.Dial("tcp", masterAddr)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+ 			return c, nil
+ 		},
+ 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
+ 			if !sentinel.TestRole(c, "master") {
+ 				return errors.New("Role check failed")
+ 			} else {
+ 				return nil
+ 			}
+ 		},
+ 	}
+ }
+
+func main() {
+	redisClient = sentinelPool()
+	c, err := redisClient.Dial()
+
+	if err != nil {
+		log.Fatalf("ERROR: %s", err)
+	}
+
+	// do something with redis
+	c.Do("SET", "foo", "bar")
+}
+
+```
+
 Alternative solution
 --------------------
 
