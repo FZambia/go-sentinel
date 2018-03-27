@@ -1,7 +1,7 @@
 go-sentinel
 ===========
 
-Redis Sentinel support for [redigo](https://github.com/garyburd/redigo) library.
+Redis Sentinel support for [redigo](https://github.com/gomodule/redigo) library.
 
 **API is unstable and can change at any moment** – use with tools like Glide, Godep etc.
 
